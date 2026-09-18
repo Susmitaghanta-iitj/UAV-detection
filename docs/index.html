@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="End-to-end clean-room implementation of the SHIELD/AHCO low-precision acoustic inference accelerator, including software models, quantization, RTL, and co-verification.">
+  <meta name="theme-color" content="#07111f">
+  <title>SHIELD/AHCO | Reproducible Low-Precision Acoustic Inference Accelerator</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2307111f'/%3E%3Cpath d='M12 34h7l4-14 7 27 6-22 5 9h11' fill='none' stroke='%232de2a6' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="SHIELD AHCO home">
+      <span class="brand-mark" aria-hidden="true">SA</span>
+      <span>SHIELD/AHCO</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" aria-label="Primary navigation">
+      <a href="#workflow">Workflow</a>
+      <a href="#deployment">Deployment</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#verification">Verification</a>
+      <a href="#results">Evaluation</a>
+      <a href="#reproduce">Reproducibility</a>
+    </nav>
+    <a class="header-cta" href="https://github.com/mukullokhande99/Sush-project">Source repository <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow">Research software · Hardware–software co-design</p>
+        <h1>SHIELD/AHCO: Reproducible Low-Precision Acoustic Inference Accelerator</h1>
+        <p class="lede">An end-to-end clean-room implementation of the SHIELD/AHCO UAV acoustic-classification architecture, spanning signal preprocessing, 1D-F-CNN inference, precision-aware training, bit-accurate reference models, synthesizable RTL, and cycle-accurate co-verification.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#architecture">Explore architecture</a>
+          <a class="button secondary" href="https://github.com/mukullokhande99/Sush-project">View repository</a>
+        </div>
+        <ul class="hero-meta" aria-label="Project highlights">
+          <li><strong>8 formats</strong><span>precision evaluation</span></li>
+          <li><strong>7 layers</strong><span>4 Conv + 3 Dense</span></li>
+          <li><strong>Python ↔ RTL</strong><span>bit-exact verification</span></li>
+        </ul>
+      </div>
+      <div class="signal-panel" aria-label="Illustration of the acoustic signal processing pipeline">
+        <div class="panel-head"><span>ACOUSTIC INPUT PIPELINE</span><span class="live-dot">source-aligned configuration</span></div>
+        <svg class="waveform" viewBox="0 0 760 250" role="img" aria-label="Stylized acoustic waveform entering a neural accelerator">
+          <defs>
+            <linearGradient id="wave" x1="0" x2="1">
+              <stop offset="0" stop-color="#2de2a6"/>
+              <stop offset="1" stop-color="#5aa7ff"/>
+            </linearGradient>
+            <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <g class="grid-lines" stroke="#213047" stroke-width="1">
+            <path d="M0 50H760M0 100H760M0 150H760M0 200H760"/>
+            <path d="M95 0V250M190 0V250M285 0V250M380 0V250M475 0V250M570 0V250M665 0V250"/>
+          </g>
+          <path class="wave-glow" d="M0 126 C25 126 32 111 47 126 S70 144 82 126 S102 73 115 126 S133 192 150 126 S173 41 190 126 S211 217 229 126 S252 58 267 126 S291 165 306 126 S329 103 343 126 S368 143 381 126 S406 75 424 126 S448 190 465 126 S489 91 507 126 S529 145 545 126 S568 116 585 126 S610 134 627 126 S652 122 670 126 S709 126 760 126" fill="none" stroke="url(#wave)" stroke-width="4" filter="url(#glow)"/>
+        </svg>
+        <div class="signal-readout">
+          <span><b>44.1</b> kHz</span><span><b>0.8</b> s window</span><span><b>35,280</b> samples</span>
+        </div>
+        <div class="chip-map" aria-hidden="true">
+          <span>FEATURE</span><i></i><span>1D-CNN</span><i></i><span>QAT</span><i></i><span>RTL</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="section-heading">
+        <p class="eyebrow">Interactive system walkthrough</p>
+        <h2>Broad-level execution flow</h2>
+        <p>Follow an illustrative acoustic segment through preprocessing, neural-network inference, precision mapping, RTL execution, and binary classification.</p>
+      </div>
+      <div class="workflow-demo" data-workflow>
+        <div class="demo-controls">
+          <label for="demo-precision">Numeric format</label>
+          <select id="demo-precision" aria-label="Select numeric format">
+            <option value="fp32">FP32</option>
+            <option value="bf16">BF16</option>
+            <option value="int8" selected>INT8</option>
+            <option value="fxp8">FXP8 Q3.4</option>
+            <option value="p82">Posit(8,2)</option>
+            <option value="p41">Posit(4,1)</option>
+            <option value="e2m1">HFP4 E2M1</option>
+            <option value="e3m0">HFP4 E3M0</option>
+          </select>
+          <button class="demo-run" type="button" data-demo-run>Run walkthrough</button>
+          <p class="demo-status" id="demo-status" aria-live="polite">Ready · INT8 selected</p>
+        </div>
+        <div class="demo-progress" role="progressbar" aria-label="Workflow progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span></span>
+        </div>
+        <div class="demo-flow" role="img" aria-label="Acoustic classification accelerator processing flow">
+          <article data-step="0">
+            <span class="demo-index">01</span>
+            <div class="mini-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <h3>Acoustic input</h3>
+            <p>0.8 s mono waveform<br>35,280 samples</p>
+          </article>
+          <article data-step="1">
+            <span class="demo-index">02</span>
+            <div class="feature-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <h3>Preprocessing</h3>
+            <p>Normalization and feature extraction</p>
+          </article>
+          <article data-step="2">
+            <span class="demo-index">03</span>
+            <div class="tensor-mark" aria-hidden="true">16×32×64×256</div>
+            <h3>1D-F-CNN</h3>
+            <p>Four convolutional blocks</p>
+          </article>
+          <article data-step="3">
+            <span class="demo-index">04</span>
+            <div class="precision-mark" id="precision-mark" aria-hidden="true">INT8</div>
+            <h3>Precision mapping</h3>
+            <p id="precision-detail">8-bit operands</p>
+          </article>
+          <article data-step="4">
+            <span class="demo-index">05</span>
+            <div class="mac-array" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <h3>RTL execution</h3>
+            <p>Shared MAC and SRAM-timed engines</p>
+          </article>
+          <article data-step="5">
+            <span class="demo-index">06</span>
+            <div class="decision-mark" aria-hidden="true">0 / 1</div>
+            <h3>Classification</h3>
+            <p>UAV or non-UAV output</p>
+          </article>
+        </div>
+        <div class="demo-readout">
+          <p><span>Selected arithmetic</span><strong id="readout-format">INT8 · symmetric integer</strong></p>
+          <p><span>Operand storage</span><strong id="readout-storage">8 bits · 4× below FP32</strong></p>
+          <p><span>Interpretation</span><strong>Illustrative flow · not a measured result</strong></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section deployment-section" id="deployment">
+      <div class="section-heading">
+        <p class="eyebrow">Physical validation concept</p>
+        <h2>From silicon implementation to field evaluation</h2>
+        <p>A system-level view of the proposed ASIC carrier, FPGA-based pre-silicon validation, and an acoustic UAV detection and tracking configuration.</p>
+      </div>
+      <div class="deployment-panel" data-deployment data-focus="all">
+        <div class="deployment-controls" role="group" aria-label="Select deployment view">
+          <button type="button" class="active" data-deployment-view="all" aria-pressed="true">Complete concept</button>
+          <button type="button" data-deployment-view="asic" aria-pressed="false">ASIC carrier</button>
+          <button type="button" data-deployment-view="fpga" aria-pressed="false">FPGA prototype</button>
+          <button type="button" data-deployment-view="field" aria-pressed="false">Field evaluation</button>
+        </div>
+        <figure class="deployment-figure">
+          <div class="deployment-image-wrap">
+            <img src="deployment-concept.webp" width="1672" height="941" loading="lazy" alt="Conceptual engineering scene showing an AHCO-UAV ASIC carrier PCB, a VC707 FPGA prototype, an acoustic sensor array, and a tracked UAV in a field test environment">
+            <span class="deployment-tag tag-asic">Proposed ASIC carrier</span>
+            <span class="deployment-tag tag-fpga">VC707 validation</span>
+            <span class="deployment-tag tag-field">Acoustic field test</span>
+            <i class="deployment-focus focus-asic" aria-hidden="true"></i>
+            <i class="deployment-focus focus-fpga" aria-hidden="true"></i>
+            <i class="deployment-focus focus-field" aria-hidden="true"></i>
+          </div>
+          <figcaption>
+            <strong id="deployment-title">End-to-end validation concept</strong>
+            <span id="deployment-detail" aria-live="polite">ASIC carrier integration → FPGA prototype validation → acoustic sensing, classification, and tracking.</span>
+          </figcaption>
+        </figure>
+        <p class="concept-note"><span>Concept status</span> This visualization distinguishes the proposed ASIC-on-PCB integration from the FPGA validation path and illustrative field-evaluation scenario; it does not imply a fabricated chip or completed deployment.</p>
+      </div>
+    </section>
+
+    <section class="section" id="architecture">
+      <div class="section-heading">
+        <p class="eyebrow">System architecture</p>
+        <h2>End-to-end implementation from acoustic input to RTL</h2>
+        <p>The project maintains traceability between source-defined architectural properties and clean-room implementation decisions across the software and hardware stacks.</p>
+      </div>
+      <div class="pipeline" role="list" aria-label="End-to-end processing pipeline">
+        <article role="listitem"><span class="step-index">01</span><h3>Signal preprocessing</h3><p>Mono-WAV segmentation, amplitude normalization, and MFCC-20, Mel, PSD, and ZCR feature extraction.</p></article>
+        <article role="listitem"><span class="step-index">02</span><h3>Network inference</h3><p>Source-aligned 1D-F-CNN with four convolutional blocks and serialization-aware dimensional reduction.</p></article>
+        <article role="listitem"><span class="step-index">03</span><h3>Precision adaptation</h3><p>Post-training quantization, learned clipping, PACT, sensitivity analysis, and mixed-precision QAT.</p></article>
+        <article role="listitem"><span class="step-index">04</span><h3>Hardware reference</h3><p>Bit-accurate arithmetic, integer golden layers, and a runtime-selectable transprecision MAC.</p></article>
+        <article role="listitem"><span class="step-index">05</span><h3>RTL integration</h3><p>Conv1D, Dense, MaxPool, SRAM timing, scheduling, and Python/SystemVerilog equivalence.</p></article>
+      </div>
+      <div class="architecture-card">
+        <div class="arch-title"><span>Source-aligned waveform network</span><span>post-reduction path</span></div>
+        <div class="arch-flow">
+          <div><strong>Input</strong><span>1 × 35,280</span></div><b>→</b>
+          <div><strong>Conv stack</strong><span>16 → 32 → 64 → 256</span></div><b>→</b>
+          <div><strong>Flatten</strong><span>35,072 → 8,704</span></div><b>→</b>
+          <div><strong>Classifier</strong><span>128 → 64 → 2</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section split-section" id="precision">
+      <div class="section-heading sticky-heading">
+        <p class="eyebrow">Supported numeric formats</p>
+        <h2>Runtime-selectable precision</h2>
+        <p>The framework provides explicit software and hardware models for integer, fixed-point, floating-point, minifloat, and posit arithmetic.</p>
+      </div>
+      <div class="format-grid">
+        <article class="format-card accent"><span>Baseline</span><h3>FP32</h3><p>Reference training and evaluation.</p></article>
+        <article class="format-card"><span>Float</span><h3>BF16</h3><p>Reduced mantissa emulation.</p></article>
+        <article class="format-card"><span>Integer</span><h3>INT8</h3><p>Symmetric per-tensor path.</p></article>
+        <article class="format-card"><span>Fixed</span><h3>FXP8 Q3.4</h3><p>Explicit fractional arithmetic.</p></article>
+        <article class="format-card"><span>Posit</span><h3>P8,2 / P4,1</h3><p>Representable-value codebooks.</p></article>
+        <article class="format-card"><span>Minifloat</span><h3>E2M1 / E3M0</h3><p>Shared 4-bit datapath modes.</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="verification">
+      <div class="section-heading">
+        <p class="eyebrow">Verification methodology</p>
+        <h2>Hierarchical Python–RTL equivalence</h2>
+        <p>Verification proceeds from arithmetic primitives to complete memory-timed compute blocks, isolating errors at each integration boundary.</p>
+      </div>
+      <div class="verify-grid">
+        <article><span class="verify-icon">Σ</span><div><h3>Arithmetic</h3><p>Exact integer reductions for <code>sum(q_a × q_w)</code> and <code>sum(q_a)</code>.</p></div></article>
+        <article><span class="verify-icon">ƒ</span><div><h3>Finalization</h3><p>Affine correction, bias, PACT clipping, and 8-bit requantization.</p></div></article>
+        <article><span class="verify-icon">▦</span><div><h3>Layer engines</h3><p>Dense and padded Conv1D traversal compared across Python and RTL.</p></div></article>
+        <article><span class="verify-icon">↔</span><div><h3>Memory timing</h3><p>Explicit one-cycle SRAM reads, valid handshakes, and latency-aware scheduling.</p></div></article>
+        <article><span class="verify-icon">✓</span><div><h3>Integrated block</h3><p>Fully wired Conv1D → SRAM → MaxPool with cycle-model agreement.</p></div></article>
+        <article><span class="verify-icon">◎</span><div><h3>Reproduction report</h3><p>Measured results compared with published targets; unavailable values remain pending.</p></div></article>
+      </div>
+    </section>
+
+    <section class="section" id="results">
+      <div class="section-heading">
+        <p class="eyebrow">Evaluation status</p>
+        <h2>Published reference targets and reproduced results</h2>
+        <p>Source-reported values are recorded as comparison targets and remain explicitly separated from measurements generated by this implementation.</p>
+      </div>
+      <div class="target-table-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>Source target</th><th>Reproduced status</th></tr></thead>
+          <tbody>
+            <tr><td>FP32 accuracy</td><td>89.91%</td><td><span class="status pending">Pending dataset run</span></td></tr>
+            <tr><td>INT8 accuracy</td><td>89.14%</td><td><span class="status pending">Pending dataset run</span></td></tr>
+            <tr><td>FXP8 accuracy</td><td>88.97%</td><td><span class="status pending">Pending dataset run</span></td></tr>
+            <tr><td>Serialized dimension</td><td>35,072 → 8,704</td><td><span class="status verified">Dimensionally verified</span></td></tr>
+            <tr><td>FPGA power / latency</td><td>0.94 W / 116 ms</td><td><span class="status pending">Pending implementation</span></td></tr>
+            <tr><td>ASIC result</td><td>1.56 GHz / 3.29 mm² / 1.65 W</td><td><span class="status pending">Pending implementation</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section reproduce" id="reproduce">
+      <div class="section-heading">
+        <p class="eyebrow">Reproducibility</p>
+        <h2>Execute the complete evaluation workflow</h2>
+        <p>After providing the dataset and trained checkpoints, the workflow generates machine-readable and publication-ready comparison reports.</p>
+      </div>
+      <div class="terminal" aria-label="Reproduction commands">
+        <div class="terminal-head"><span></span><span></span><span></span><b>reproduction.sh</b><button type="button" data-copy aria-label="Copy commands">Copy</button></div>
+        <pre><code>git clone https://github.com/mukullokhande99/Sush-project.git
+cd Sush-project
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python -m shield_ahco.repro.pipeline \
+  --data-root data \
+  --baseline-checkpoint runs/thesis_waveform/best.pt \
+  --reduced-checkpoint runs/thesis_waveform_reduced/best.pt \
+  --outdir reproduction_results</code></pre>
+      </div>
+      <div class="boundary-grid">
+        <article><span class="boundary source"></span><h3>Source-derived</h3><p>Architectures, supported formats, equations, and published comparison targets.</p></article>
+        <article><span class="boundary clean"></span><h3>Clean-room choices</h3><p>Canonical formats, widths, metadata representation, memory timing, and control.</p></article>
+        <article><span class="boundary pending-dot"></span><h3>Measured or pending</h3><p>Accuracy and PPA appear only when backed by an actual experiment or implementation.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>SHIELD/AHCO Clean-Room Implementation</strong><span>Reproducible research software for precision-aware accelerator design and verification.</span></p>
+    <a href="https://github.com/mukullokhande99/Sush-project">GitHub repository ↗</a>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
