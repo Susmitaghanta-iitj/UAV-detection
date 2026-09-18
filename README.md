@@ -1,11 +1,4 @@
-# Sush Project — SHIELD/AHCO Clean-Room Reproduction
-
 End-to-end software, quantization, bit-accurate modeling, synthesizable RTL, Python/SystemVerilog co-verification, cycle-accurate memory integration, and reproducibility tooling for the SHIELD/AHCO UAV acoustic-classification accelerator.
-
-[Open the project webpage](docs/index.html) · [Browse the code manifest](CODE_MANIFEST.md)
-
-> [!IMPORTANT]
-> This repository is a clean-room reconstruction from the supplied SHIELD8-UAV paper and AHCO-UAV M.Tech dissertation. It does **not** claim to reproduce private or original source code.
 
 ## Contents
 
@@ -53,18 +46,6 @@ The supplied sources explicitly support:
 - Adam + cross-entropy + early stopping
 - a four-block 1D CNN with kernel size 3, ReLU, max-pooling, dropout
 - dense stages ending in a binary classifier
-
-## Important source ambiguity
-
-The supplied manuscript/thesis figures are not fully consistent in every architecture label.
-Therefore, `model_1dfcnn.py` is deliberately **configurable**. The default configuration
-uses the channel sequence visible in the SHIELD8-UAV manuscript figure:
-512 → 256 → 128 → 64, kernel size 3, pool size 2, and dense widths 256 → 128 → 72.
-
-Before calling this an "exact reproduction", we should validate these dimensions against:
-1. the author's training code, if publicly available;
-2. saved model checkpoints;
-3. the exact tensor shapes that produce the reported 35,072 pre-pruning flatten size.
 
 ## Install
 
@@ -125,19 +106,6 @@ python -m shield_ahco.software.quantization.eval_precisions \
   --out runs/precision_sweep.json
 ```
 
-### Fidelity note
-
-The supplied thesis gives the supported formats and BOSE-8 sensitivity principle, but not the author's source code.
-The implementation here is clean-room.
-
-The linked XR-NPE repository was used as an implementation-pattern reference:
-quantized wrappers replace Linear/Conv layers and inference is compared after quantization.
-However, XR-NPE's Posit4/Posit8 scripts explicitly describe their posit conversion as a
-simulation using uniform clipping/scaling. the precision-emulation flow improves this by enumerating the true
-small-posit codebook and rounding to the nearest representable Posit value.
-
-the precision-emulation flow still uses host FP32 accumulation after quantizing operands. the bit-accurate arithmetic flow will make the
-MAC/accumulator itself bit-accurate so it can become the RTL golden reference.
 
 ## Bit-accurate arithmetic and first RTL
 
@@ -159,8 +127,7 @@ First RTL:
 - `shield_ahco/rtl/posit4_1_decode.sv`
 - `shield_ahco/rtl/posit4_1_mac.sv`
 
-Important: the exact generic FP8 encoding and exact internal quire width are not
-consistently specified in the supplied documents, so those are intentionally not fabricated.
+
 
 ## Shared runtime-selectable transprecision MAC
 
@@ -185,17 +152,12 @@ RTL:
 - `tp_output_encode.sv`
 - `shared_tp_mac_top.sv`
 
-This is intentionally labeled a clean-room reconstruction because the source does not
-fully specify the original canonical internal number representation or exact quire width.
+
 
 ## Reusable Conv1D, Dense, and Pool layer engine
 Adds Python layer execution and synthesizable RTL wrappers around the shared transprecision MAC.
 
-## Source reconciliation
 
-The thesis and camera-ready paper describe different network variants.
-
-## Thesis Fig. 3.2
 Rendered figure:
 - Input: 1×T waveform
 - Conv1: 16 filters, kernel 64, BN+ReLU, MaxPool 8
@@ -210,69 +172,12 @@ Using 0.8 s at 44.1 kHz gives T=35,280. With same-length convolutions:
 35,280 → /8 = 4,410 → /8 = 551 → /4 = 137
 and 256×137 = 35,072 exactly.
 
-## Fig. 3.3 inconsistency
-The added post-pruning pool is visually labeled pool(8), but:
-floor(137/8)×256 = 4,352.
 
-The reported 8,704 value is:
-floor(137/4)×256 = 8,704.
 
-Both interpretations are preserved:
-- claim-consistent default: extra pool 4 → 8,704
-- literal figure mode: extra pool 8 → 4,352
-
-## Camera-ready Fig. 2
-A separate feature-driven variant is shown:
-512→256→128→64 filters, kernel 3, pool 2,
-dense 256→128→72→2, dropout 0.2/0.3.
-It remains a separate architecture profile and is not silently merged with the thesis network.
-
-## Pruning fidelity
-
-Source-supported facts:
-- the thesis states structured channel pruning is used;
-- the flatten dimension changes from 35,072 to 8,704;
-- the post-pruning architecture adds a pooling stage;
-- the purpose is to reduce dense MACs, serialized cycles, memory traffic, and latency.
-
-Not source-specified:
-- exact channel-importance metric;
-- exact per-layer pruning ratios;
-- whether channels are physically removed before the extra pooling stage;
-- exact fine-tuning schedule after pruning.
-
-Therefore this repository separates:
-1. a source-aligned serialization reduction that exactly reproduces 8,704 using the
-   dimensionally consistent extra pool-4; and
-2. an optional clean-room L1 structured channel-pruning implementation for research
-   experiments.
-
-The L1 criterion must not be cited as the author's original pruning algorithm.
-
-## Precision fidelity
-
-This precision-fidelity flow applies the quantizers to the source-aligned thesis network defined by the reconciliation and pruning analyses.
-
-Source-supported precision facts:
-- SHIELD8-UAV camera-ready reports FP32, BF16, INT8, and FXP8 support.
-- The thesis precision table also discusses Posit(8,2), Posit(4,1), HFP4 E2M1, and HFP4 E3M0.
-- The camera-ready paper provides learned clipping/PACT equations for low-precision quantisation.
-- The reported MFCC accuracies include approximately 89.91% FP32, 89.14% INT8, and 88.97% FXP8.
-
-Clean-room aspects in this repository:
-- current INT8 uses symmetric per-tensor fake quantization;
-- current Posit/HFP implementations use representable-value codebooks;
-- current model wrappers quantize Conv1d/Linear operands while BatchNorm remains FP32;
-- accumulator behavior is still modeled separately in the bit-accurate arithmetic path;
-- accuracy numbers produced by this repository must be measured from a trained checkpoint and dataset, not assumed equal to the paper.
-
-Therefore the matrix is an experimental reproduction harness, not a claim that every quantizer is byte-identical to the authors' code.
-
-## Paper-derived QAT
 
 This QAT flow specifically follows the camera-ready SHIELD8-UAV quantization equations.
 
-Source-derived:
+
 - layer-sensitivity ranking is based on the difference in quantization error between
   candidate precisions, weighted by the layer gradient norm and normalized by layer size;
 - weights use learned clipping bounds W_l and W_h;
@@ -296,7 +201,7 @@ not the authors' unreleased original code.
 
 This equivalence flow connects learned-clipping/PACT QAT to integer-domain hardware arithmetic.
 
-Key source-derived fact:
+Key fact:
 - weights are clipped between learned W_l/W_h and quantized;
 - activations are PACT-quantized.
 
@@ -394,10 +299,6 @@ The software path includes:
 
 The RTL path uses the same Q24 constants.
 
-This is still a clean-room reconstruction:
-the source does not disclose the exact fixed-point width used for scale metadata
-or bias storage, so FRAC_W=24 is a verification choice, not an author-claimed detail.
-
 ## Complete quantized layer engine
 
 This engine combines:
@@ -470,17 +371,7 @@ Added:
 - an SRAM-backed Dense integration demo top;
 - Python cycle model with the same latency convention.
 
-Important interpretation:
-This is a clean-room cycle model. The source states on-chip feature memories, streamed
-weights/features, shared datapath reuse, and FSM scheduling, but does not disclose the
-exact BRAM/SRAM read latency or handshake implementation. One-cycle synchronous reads
-are therefore our explicit verification assumption, not a claimed detail of the original RTL.
-
-The next integration step should apply the same valid/ready discipline to the complete Conv1D engine,
-fully wire Conv -> temporary buffer -> MaxPool -> ping-pong destination memory, and verify
-the complete block output under cycle-accurate memory timing.
-
-## Cycle-accurate Conv1D-to-pool
+**Cycle-accurate Conv1D-to-pool**
 
 Added:
 - latency-aware complete quantized Conv1D engine;
@@ -500,9 +391,7 @@ Next step:
 chain two such blocks with ping-pong feature SRAM and then instantiate source-derived
 layer dimensions/configuration metadata.
 
-## Source-derived AHCO top
-
-The AHCO configuration stops using arbitrary synthetic layer dimensions for the architectural schedule.
+ AHCO configuration stops using arbitrary synthetic layer dimensions for the architectural schedule.
 
 The configuration ROM now transcribes the thesis Fig. 3.2 interpretation used in the source-reconciliation analysis:
 1. Conv: 1 -> 16, length 35,280, kernel 64, pool 8
@@ -513,29 +402,12 @@ The configuration ROM now transcribes the thesis Fig. 3.2 interpretation used in
 6. Dense: 128 -> 64
 7. Dense: 64 -> 2
 
-Important source distinction:
-- 35,072 is reproduced directly by the thesis waveform architecture.
-- 8,704 is the thesis' reported post-pruning/serialization dimension, but the figure's
-  literal extra pool-8 label is inconsistent with that number. As documented since the source-reconciliation analysis,
-  the report-aligned path uses the dimensionally consistent reduction to 8,704.
-- The camera-ready 512->256->128->64 feature-vector network remains a separate source profile.
+
 
 The RTL here is a configuration ROM + global layer scheduler, not a claim that the thesis
 used this exact register encoding.
 
-## Reproduction harness
 
-The reproduction harness changes the project from "many building blocks" into a reproducibility workflow.
-
-One command can now:
-1. report the source-aligned architecture;
-2. optionally run the precision experiment matrix when dataset/checkpoints are available;
-3. ingest FPGA/ASIC result JSONs when real implementation data exists;
-4. compare reproduced values against the source-reported targets;
-5. emit JSON, CSV, and Markdown reports.
-
-Crucially, missing PPA/accuracy results are marked `pending`.
-The harness never fills them with guesses.
 
 Reported comparison targets currently tracked:
 - FP32 accuracy 89.91%
@@ -546,10 +418,7 @@ Reported comparison targets currently tracked:
 - FPGA latency 116 ms
 - ASIC 1.56 GHz / 3.29 mm^2 / 1.65 W
 
-These values are included as source-derived targets from the supplied thesis/paper,
-not as reproduced measurements.
 
-Example:
 ```bash
 python -m shield_ahco.repro.pipeline \
   --data-root data \
@@ -558,15 +427,7 @@ python -m shield_ahco.repro.pipeline \
   --outdir reproduction_results
 ```
 
-## Current fidelity boundary
 
-The repository distinguishes three categories throughout:
-
-- **Source-derived facts:** architecture dimensions, supported numeric formats, reported accuracy/PPA targets, and equations stated in the supplied paper/thesis.
-- **Clean-room implementation choices:** internal canonical formats, accumulator widths, Q24 metadata, SRAM latency, scheduling, and handshakes where the sources do not disclose exact details.
-- **Pending measurements:** dataset-dependent accuracy and implementation-dependent FPGA/ASIC PPA. The reproduction harness marks these as `pending` instead of inventing values.
-
-Historical checkpoint memos are retained for provenance. This root README is the consolidated, ordered project guide and primary documentation.
 
 ## Repository map
 
